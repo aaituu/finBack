@@ -23,36 +23,36 @@ const app = express();
 app.disable('x-powered-by');
 
 app.use(helmet());
-app.use(
-  cors({
-    origin: (origin, cb) => {
-      const raw = env.CORS_ORIGIN || '*';
 
-      // Allow non-browser tools (Postman) that send no Origin
-      if (!origin) return cb(null, true);
+const corsOptions = {
+  origin: (origin, cb) => {
+    const raw = env.CORS_ORIGIN || '*';
 
-      // If '*' => reflect request origin (works with credentials)
-      if (raw === '*') return cb(null, true);
+    // Postman / server-to-server
+    if (!origin) return cb(null, true);
 
-      // Support comma-separated allowlist
-      const allowed = raw
-        .split(',')
-        .map(s => s.trim())
-        .filter(Boolean);
+    // '*' => reflect origin (works with credentials)
+    if (raw === '*') return cb(null, true);
 
-      if (allowed.includes(origin)) return cb(null, true);
+    const allowed = raw
+      .split(',')
+      .map(s => s.trim())
+      .filter(Boolean);
 
-      return cb(new Error('CORS blocked: ' + origin));
-    },
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization']
-  })
-);
+    if (allowed.includes(origin)) return cb(null, true);
 
-// Preflight
-app.options('*', cors());
+    return cb(new Error('CORS blocked: ' + origin));
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+};
+
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions)); // ✅ ВАЖНО: тот же corsOptions
 app.use(express.json({ limit: '1mb' }));
+
+
 app.use(morgan('dev'));
 
 app.use(
