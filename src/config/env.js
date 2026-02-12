@@ -20,7 +20,7 @@ const env = {
   MONGODB_URI: req('MONGODB_URI'),
   JWT_SECRET: req('JWT_SECRET'),
   JWT_EXPIRES_IN: process.env.JWT_EXPIRES_IN || '7d',
-  CORS_ORIGIN: process.env.CORS_ORIGIN || '*',
+  CORS_ORIGIN: process.env.CORS_ORIGIN || 'http://localhost:5173,https://finfront-omega.vercel.app',
 
   // Admin bootstrap
   ADMIN_EMAIL: process.env.ADMIN_EMAIL || '',

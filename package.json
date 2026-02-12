@@ -7,12 +7,11 @@
     "dev": "node src/server.js",
     "start": "node src/server.js",
     "lint": "echo \"(no lint)\"",
-    "build:frontend": "cd ../frontend && npm install && npm run build",
-    "start": "node src/server.js"
+    "build:frontend": "cd ../frontend && npm install && npm run build"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
-    "cors": "^2.8.5",
+    "cors": "^2.8.6",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
     "express-rate-limit": "^7.4.0",
