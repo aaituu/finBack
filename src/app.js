@@ -22,41 +22,41 @@ const app = express();
 
 app.disable("x-powered-by");
 
+import cors from "cors";
+import helmet from "helmet";
+import express from "express";
+
+
 app.use(helmet());
 
-// --- CORS ---
-// Supports:
-// - CORS_ORIGIN='*'  -> reflects request Origin (works with credentials)
-// - CORS_ORIGIN='https://a.vercel.app' (single origin)
-// - CORS_ORIGIN='http://localhost:5173,https://a.vercel.app' (comma-separated allowlist)
+const allowedOrigins = [
+  "https://finfront-omega.vercel.app",
+  "http://localhost:5173"
+];
+
 const corsOptions = {
-  origin: (origin, cb) => {
-    const raw = env.CORS_ORIGIN || "*";
+  origin: (origin, callback) => {
+    // Разрешаем Postman / server-to-server
+    if (!origin) return callback(null, true);
 
-    // Allow non-browser clients (Postman, server-to-server) with no Origin header.
-    if (!origin) return cb(null, true);
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
 
-    // '*' means: allow any origin by reflecting it back.
-    if (raw === "*") return cb(null, true);
-
-    const allowed = raw
-      .split(",")
-      .map((s) => s.trim())
-      .filter(Boolean);
-
-    if (allowed.includes(origin)) return cb(null, true);
-    return cb(new Error("CORS blocked: " + origin));
+    console.log("Blocked by CORS:", origin);
+    return callback(new Error("CORS blocked"));
   },
   credentials: true,
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"],
+  allowedHeaders: ["Content-Type", "Authorization"]
 };
 
 app.use(cors(corsOptions));
-// IMPORTANT: use the same options for preflight as for actual requests.
 app.options("*", cors(corsOptions));
 
 app.use(express.json({ limit: "1mb" }));
+
+
 app.use(morgan("dev"));
 
 app.use(
