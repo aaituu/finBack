@@ -1,54 +1,46 @@
-const nodemailer = require("nodemailer");
-const { env } = require("../config/env");
+// Resend email helper (SMTP-free)
+async function sendMail({ to, subject, text }) {
+  const key = process.env.RESEND_API_KEY;
+  const from = process.env.MAIL_FROM || 'onboarding@resend.dev';
 
-let transporter = null;
-
-function getTransporter() {
-  if (transporter) return transporter;
-
-  const missing = [];
-  if (!env.SMTP_HOST) missing.push("SMTP_HOST");
-  if (!env.SMTP_USER) missing.push("SMTP_USER");
-  if (!env.SMTP_PASS) missing.push("SMTP_PASS");
-  if (!env.SMTP_FROM) missing.push("SMTP_FROM");
-
-  if (missing.length) {
-    console.log("[MAIL] skipped, missing env:", missing.join(", "));
-    return null;
+  if (!key) {
+    console.log('[MAIL] skipped: missing RESEND_API_KEY');
+    return { skipped: true };
   }
 
-  const port = Number(env.SMTP_PORT || 587);
-
-  transporter = nodemailer.createTransport({
-    host: env.SMTP_HOST,
-    port,
-    secure: port === 465,
-    auth: { user: env.SMTP_USER, pass: env.SMTP_PASS },
-    connectionTimeout: 10000,
-    greetingTimeout: 10000,
-    socketTimeout: 15000,
-  });
-
-  // Проверка подключения при первом создании
-  transporter.verify((err, success) => {
-    if (err) console.error("[MAIL] verify failed:", err);
-    else console.log("[MAIL] verify ok:", success);
-  });
-
-  return transporter;
-}
-
-async function sendMail({ to, subject, text }) {
-  const t = getTransporter();
-  if (!t) return { skipped: true };
+  const recipients = to || process.env.MAIL_TO;
+  if (!recipients) {
+    console.log('[MAIL] skipped: missing recipient (to or MAIL_TO)');
+    return { skipped: true };
+  }
 
   try {
-    const info = await t.sendMail({ from: env.SMTP_FROM, to, subject, text });
-    console.log("[MAIL] sent:", info.messageId || info.response || "ok");
+    const resp = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${key}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        from,
+        to: Array.isArray(recipients) ? recipients : [recipients],
+        subject,
+        text
+      })
+    });
+
+    const data = await resp.json().catch(() => ({}));
+
+    if (!resp.ok) {
+      console.error('[MAIL] resend failed:', resp.status, data);
+      return { ok: false, error: JSON.stringify(data) };
+    }
+
+    console.log('[MAIL] resend ok:', data);
     return { ok: true };
-  } catch (err) {
-    console.error("[MAIL] send failed:", err);
-    return { ok: false, error: String(err?.message || err) };
+  } catch (e) {
+    console.error('[MAIL] resend exception:', e);
+    return { ok: false, error: String(e?.message || e) };
   }
 }
 

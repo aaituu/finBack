@@ -1,15 +1,17 @@
-// Ayana: Contact form controller (save + email via nodemailer)
-
+// Contact form controller (save + email via Resend API)
 const ContactMessage = require('../models/ContactMessage');
 const { sendMail } = require('../utils/mailer');
-const { env } = require('../config/env');
 
 async function submitContact(req, res) {
-  const { name = '', phone = '', email = '', message } = req.body;
+  const { name = '', phone = '', email = '', message = '' } = req.body;
 
   const saved = await ContactMessage.create({ name, phone, email, message });
 
-  const to = env.SMTP_TO || env.ADMIN_EMAIL || '';
+  // ✅ сразу отвечаем фронту
+  res.status(201).json(saved.toJSON());
+
+  // ✅ отправляем письмо "в фоне", не блокируем запрос
+  const to = process.env.MAIL_TO || '';
   if (to) {
     const text =
       `New contact message\n\n` +
@@ -19,14 +21,11 @@ async function submitContact(req, res) {
       `Message:\n${message}\n\n` +
       `Created: ${saved.createdAt.toISOString()}`;
 
-    try {
-      await sendMail({ to, subject: 'Rentify: New Contact Request', text });
-    } catch (e) {
-      // email may fail, but we still keep message in DB
-    }
+    sendMail({ to, subject: 'Rentify: New Contact Request', text })
+      .catch(err => console.error('[MAIL] contact failed:', err));
+  } else {
+    console.log('[MAIL] skipped: MAIL_TO not set');
   }
-
-  return res.status(201).json(saved.toJSON());
 }
 
 module.exports = { submitContact };
