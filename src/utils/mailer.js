@@ -1,12 +1,19 @@
-const nodemailer = require('nodemailer');
-const { env } = require('../config/env');
+const nodemailer = require("nodemailer");
+const { env } = require("../config/env");
 
 let transporter = null;
 
 function getTransporter() {
   if (transporter) return transporter;
 
-  if (!env.SMTP_HOST || !env.SMTP_USER || !env.SMTP_PASS || !env.SMTP_FROM) {
+  const missing = [];
+  if (!env.SMTP_HOST) missing.push("SMTP_HOST");
+  if (!env.SMTP_USER) missing.push("SMTP_USER");
+  if (!env.SMTP_PASS) missing.push("SMTP_PASS");
+  if (!env.SMTP_FROM) missing.push("SMTP_FROM");
+
+  if (missing.length) {
+    console.log("[MAIL] skipped, missing env:", missing.join(", "));
     return null;
   }
 
@@ -17,11 +24,15 @@ function getTransporter() {
     port,
     secure: port === 465,
     auth: { user: env.SMTP_USER, pass: env.SMTP_PASS },
-
-    // ✅ чтобы не висло вечно
     connectionTimeout: 10000,
     greetingTimeout: 10000,
-    socketTimeout: 15000
+    socketTimeout: 15000,
+  });
+
+  // Проверка подключения при первом создании
+  transporter.verify((err, success) => {
+    if (err) console.error("[MAIL] verify failed:", err);
+    else console.log("[MAIL] verify ok:", success);
   });
 
   return transporter;
@@ -31,8 +42,14 @@ async function sendMail({ to, subject, text }) {
   const t = getTransporter();
   if (!t) return { skipped: true };
 
-  await t.sendMail({ from: env.SMTP_FROM, to, subject, text });
-  return { ok: true };
+  try {
+    const info = await t.sendMail({ from: env.SMTP_FROM, to, subject, text });
+    console.log("[MAIL] sent:", info.messageId || info.response || "ok");
+    return { ok: true };
+  } catch (err) {
+    console.error("[MAIL] send failed:", err);
+    return { ok: false, error: String(err?.message || err) };
+  }
 }
 
 module.exports = { sendMail };
