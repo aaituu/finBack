@@ -24,23 +24,27 @@ app.disable('x-powered-by');
 
 app.use(helmet());
 
+// --- CORS ---
+// Supports:
+// - CORS_ORIGIN='*'  -> reflects request Origin (works with credentials)
+// - CORS_ORIGIN='https://a.vercel.app' (single origin)
+// - CORS_ORIGIN='http://localhost:5173,https://a.vercel.app' (comma-separated allowlist)
 const corsOptions = {
   origin: (origin, cb) => {
     const raw = env.CORS_ORIGIN || '*';
 
-    // Postman / server-to-server
+    // Allow non-browser clients (Postman, server-to-server) with no Origin header.
     if (!origin) return cb(null, true);
 
-    // '*' => reflect origin (works with credentials)
+    // '*' means: allow any origin by reflecting it back.
     if (raw === '*') return cb(null, true);
 
     const allowed = raw
       .split(',')
-      .map(s => s.trim())
+      .map((s) => s.trim())
       .filter(Boolean);
 
     if (allowed.includes(origin)) return cb(null, true);
-
     return cb(new Error('CORS blocked: ' + origin));
   },
   credentials: true,
@@ -49,10 +53,10 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
-app.options('*', cors(corsOptions)); // ✅ ВАЖНО: тот же corsOptions
+// IMPORTANT: use the same options for preflight as for actual requests.
+app.options('*', cors(corsOptions));
+
 app.use(express.json({ limit: '1mb' }));
-
-
 app.use(morgan('dev'));
 
 app.use(
